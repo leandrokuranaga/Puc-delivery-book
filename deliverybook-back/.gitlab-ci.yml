@@ -1,0 +1,67 @@
+image: mcr.microsoft.com/dotnet/core/sdk:3.1
+
+variables:
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+  GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+
+stages:        
+    - build
+    - test    
+    - sonar
+    - deploy  
+    
+sonarcloud-check:
+  stage: sonar
+  image: mcr.microsoft.com/dotnet/core/sdk:3.1
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - echo "${CI_PROJECT_DIR}"
+    - echo "${SONAR_HOST_URL}"
+    - "apt-get update"
+    - "apt-get install --yes openjdk-11-jre"
+    - "dotnet tool install --global dotnet-sonarscanner"
+    - "export PATH=\"$PATH:$HOME/.dotnet/tools\""
+    #- dotnet test deliverybook-back.sln --verbosity minimal --collect:"XPlat Code Coverage"
+    - dotnet sonarscanner begin /k:"puc2021_deliverybook-back" /d:sonar.host.url="${SONAR_HOST_URL}" /d:sonar.login="${SONAR_TOKEN}" /o:"puc2021" /d:sonar.visualstudio.enable=true /d:sonar.verbose=true /d:sonar.dotnet.excludeTestProjects=true /d:sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)\**\*.trx /d:sonar.cs.vscoveragexml.reportsPaths=$(Agent.TempDirectory)\**\*.coveragexml /d:sonar.visualstudio.skipIfNotBuilt=true /d:sonar.sourceEncoding=UTF-8      
+    #/d:sonar.qualitygate.wait=true  /d:sonar.verbose=true /d:sonar.dotnet.excludeTestProjects=false /d:sonar.cs.opencover.reportsPaths="coverage.cobertura.xml"
+    #/d:sonar.cs.opencover.reportsPaths="coverage.cobertura.xml"
+    #/d:"sonar.cs.vscoveragexml.reportsPaths=coverage.cobertura.xml"
+    #-d:"sonar.cs.vscoveragexml.reportsPaths=.*\.dll$,.*\.exe$"      
+    - dotnet build "deliverybook-back.sln"
+    - dotnet test "deliverybook.UnitTests\deliverybook.UnitTests.csproj" --collect:"Code Coverage" --logger trx --results-directory "TestsResults"
+    - dotnet sonarscanner end /d:sonar.login="${SONAR_TOKEN}"
+  only:
+    - sonarcloud
+    - master
+    # - feature-ajustes
+
+
+build:
+    stage: build
+    script:
+        - "dotnet build"
+    artifacts:
+      paths:
+        - bin/
+
+test:
+    stage: test
+    script: 
+        - "dotnet test"
+      
+deploy:
+  stage: deploy
+  image: mcr.microsoft.com/dotnet/core/sdk:3.1
+  script:
+    - apt-get update && apt-get -y install zip
+    - curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+    -  az login --service-principal -u $AZ_SERVICE_PRINCIPAL_URL -p $AZ_SERVICE_PRINCIPAL_SECRET --tenant
+        $AZ_SERVICE_PRINCIPAL_TENANT
+    - dotnet publish -c release -o out
+    - cd out && zip -r app.zip .
+    - az webapp deployment source config-zip -n $AZ_APP_NAME -g $AZ_APP_RESOURCE_GROUP --src app.zip
+  only:
+    - master
