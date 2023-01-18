@@ -1,0 +1,24 @@
+#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
+
+FROM mcr.microsoft.com/dotnet/aspnet:3.1 AS base
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
+
+FROM mcr.microsoft.com/dotnet/sdk:3.1 AS build
+WORKDIR /src
+COPY ["deliverybook.API/deliverybook.API.csproj", "deliverybook.API/"]
+COPY ["deliverybook.Domain/deliverybook.Domain.csproj", "deliverybook.Domain/"]
+COPY ["deliverybook.Infra/deliverybook.Infra.csproj", "deliverybook.Infra/"]
+RUN dotnet restore "deliverybook.API/deliverybook.API.csproj"
+COPY . .
+WORKDIR "/src/deliverybook.API"
+RUN dotnet build "deliverybook.API.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "deliverybook.API.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "deliverybook.API.dll"]

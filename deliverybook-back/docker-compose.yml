@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  deliverybook.api:
+    image: ${DOCKER_REGISTRY-}deliverybookapi
+    build:
+      context: .
+      dockerfile: deliverybook.API/Dockerfile

@@ -1,0 +1,19 @@
+@font-face {
+  font-family: NexaRegular;
+  src: url(./assets/fonts/nexa/Nexa-Regular.otf)
+}
+
+@font-face {
+  font-family: NexaBold;
+  src: url(./assets/fonts/nexa/Nexa-Bold.otf)
+}
+
+@font-face {
+  font-family: NexaLight;
+  src: url(./assets/fonts/nexa/Nexa-Light.otf)
+}
+
+a {
+  text-decoration: none !important;
+  color: inherit !important;
+}
